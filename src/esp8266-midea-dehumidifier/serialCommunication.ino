@@ -31,26 +31,31 @@ void clearTxBuf() {
 
 void handleUart() {
   if (Serial.available()) {
-    Serial.readBytesUntil('\n', serialRxBuf, 250);
-    if (serialRxBuf[10] == 0xc8) {
-      parseState();
-      publishState();
-    } else if (serialRxBuf[10] == 0x63) {
-      updateAndSendNetworkStatus(isMqttConnected());
-    } else if ( //Yes, this is ugly :(
-      serialRxBuf[10] == 0x0 &&
-      serialRxBuf[50] == 0xaa &&
-      serialRxBuf[51] == 0x1e &&
-      serialRxBuf[52] == 0xa1 && //Appliance Type
-      serialRxBuf[58] == 0x03 &&
-      serialRxBuf[59] == 0x64 &&
-      serialRxBuf[61] == 0x01 &&
-      serialRxBuf[65] == 0x01
-    ) {
-      resetWifiSettingsAndReboot();
-    } else {
-      //Serial.print("Received msg with invalid type: ");
-      //Serial.println(serialRxBuf[10]);
+    size_t len = Serial.readBytesUntil('\n', serialRxBuf, 250);
+
+    // Für die Nachrichtentyp-Erkennung muss Byte 10 vorhanden sein.
+    if (len > 10) {
+      if (serialRxBuf[10] == 0xc8 && len > 31) {
+        parseState();
+        publishState();
+
+      } else if (serialRxBuf[10] == 0x63) {
+        updateAndSendNetworkStatus(isMqttConnected());
+
+      // Für die Reset-Erkennung werden Bytes bis Position 65 benötigt.
+      } else if (
+        len > 65 &&
+        serialRxBuf[10] == 0x00 &&
+        serialRxBuf[50] == 0xaa &&
+        serialRxBuf[51] == 0x1e &&
+        serialRxBuf[52] == 0xa1 &&
+        serialRxBuf[58] == 0x03 &&
+        serialRxBuf[59] == 0x64 &&
+        serialRxBuf[61] == 0x01 &&
+        serialRxBuf[65] == 0x01
+      ) {
+        resetWifiSettingsAndReboot();
+      }
     }
   }
 }
