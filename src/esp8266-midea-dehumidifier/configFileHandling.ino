@@ -14,24 +14,40 @@ void saveConfig() {
 }
 
 void loadConfig() {
-  if (SPIFFS.begin()) {
+  if (!SPIFFS.begin()) {
+    return;
+  }
 
-    if (SPIFFS.exists("/config.json")) {
-      File configFile = SPIFFS.open("/config.json", "r");
+  if (!SPIFFS.exists("/config.json")) {
+    return;
+  }
 
-      if (configFile) {
-        const size_t size = configFile.size();
-        std::unique_ptr<char[]> buf(new char[size]);
+  File configFile = SPIFFS.open("/config.json", "r");
+  if (!configFile) {
+    return;
+  }
 
-        configFile.readBytes(buf.get(), size);
-        DynamicJsonDocument json(512);
+  DynamicJsonDocument json(512);
+  DeserializationError error = deserializeJson(json, configFile);
+  configFile.close();
 
-        if (DeserializationError::Ok == deserializeJson(json, buf.get())) {
-          strcpy(mqtt_server, json["mqtt_server"]);
-          strcpy(username, json["username"]);
-          strcpy(password, json["password"]);
-        }
-      }
-    }
+  if (error) {
+    return;
+  }
+
+  const char* savedMqttServer = json["mqtt_server"];
+  const char* savedUsername   = json["username"];
+  const char* savedPassword   = json["password"];
+
+  if (savedMqttServer != nullptr) {
+    strlcpy(mqtt_server, savedMqttServer, sizeof(mqtt_server));
+  }
+
+  if (savedUsername != nullptr) {
+    strlcpy(username, savedUsername, sizeof(username));
+  }
+
+  if (savedPassword != nullptr) {
+    strlcpy(password, savedPassword, sizeof(password));
   }
 }
